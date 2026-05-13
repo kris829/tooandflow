@@ -1,0 +1,6 @@
+{
+    "env": [
+        { "TOOANDFLOW_ROOT": "/Volumes/Suite/LOS_LABS/KRIS/git/tooandflow" }
+    ],
+    "path": "$TOOANDFLOW_ROOT"
+}

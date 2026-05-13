@@ -1,0 +1,11 @@
+tooandflow — one-click flipbook + dated save
+
+  Click        : MP4
+  Shift+click  : JPG sequence
+  Ctrl+click   : EXR sequence
+
+Output:
+  $HIP/flipbook/YYYY_MMDD/<scene>/<scene>_YYYY_MMDD_<roman>.{hiplc,mp4,jpg,exr}
+
+Prefs at:
+  $HOUDINI_USER_PREF_DIR/tooandflow_prefs.json

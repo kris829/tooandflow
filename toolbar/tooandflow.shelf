@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <!--
+    tooandflow shelf — one tool, modifier-aware.
+    See toolbar/tooandflow.shelf in the repo for source.
+  -->
+
+  <toolshelf name="tooandflow" label="tooandflow">
+    <memberTool name="tooandflow_flipsave"/>
+  </toolshelf>
+
+  <tool name="tooandflow_flipsave" label="Flipsave" icon="MISC_play">
+    <helpText><![CDATA[#icon: MISC_play
+#context: scene
+
+= tooandflow Flipsave =
+
+One-click flipbook + dated hip copy. Modifier keys pick the format.
+
+* Click          : MP4 (h264, slow preset, CRF 16)
+* Shift + click  : JPG image sequence
+* Ctrl + click   : EXR image sequence
+
+Output goes to:
+  $HIP/flipbook/YYYY_MMDD/<scene>/<scene>_YYYY_MMDD_<roman>.{hiplc,mp4,jpg,exr}
+
+The dated hip and the render share the same roman tag so they're easy to pair.
+]]></helpText>
+    <script scriptType="python"><![CDATA[
+from tooandflow import flipsave
+
+if kwargs.get("ctrlclick"):
+    fmt = "exr"
+elif kwargs.get("shiftclick"):
+    fmt = "jpg"
+else:
+    fmt = "mp4"
+
+flipsave.run(fmt)
+]]></script>
+  </tool>
+</shelfDocument>
