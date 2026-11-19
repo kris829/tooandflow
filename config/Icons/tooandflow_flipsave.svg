@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- tooandflow Flipsave icon — 16x16 pixel art.
+       Film frame + clean play triangle + floppy-disk "save" badge.
+       One <rect> per pixel block so edges stay hard at any raster scale. -->
+
+  <!-- ===== film frame outer body (dark slate), cols 1..14 rows 1..14 ===== -->
+  <rect x="1" y="1" width="14" height="14" fill="#222633"/>
+
+  <!-- ===== inner screen panel (steel blue), cols 4..11 rows 3..12 =====
+       leaves a 2px dark gutter on each side for sprockets -->
+  <rect x="4" y="3" width="8" height="9" fill="#3c4f6b"/>
+
+  <!-- ===== sprocket holes in the gutters (cream) ===== -->
+  <g fill="#f4ecd8">
+    <!-- left gutter at x=2 -->
+    <rect x="2" y="2"  width="1" height="1"/>
+    <rect x="2" y="5"  width="1" height="1"/>
+    <rect x="2" y="8"  width="1" height="1"/>
+    <rect x="2" y="11" width="1" height="1"/>
+    <!-- right gutter at x=13 -->
+    <rect x="13" y="2"  width="1" height="1"/>
+    <rect x="13" y="5"  width="1" height="1"/>
+    <rect x="13" y="8"  width="1" height="1"/>
+    <rect x="13" y="11" width="1" height="1"/>
+  </g>
+
+  <!-- ===== play triangle (green), clean pixel-stepped ▶ =====
+       widest at the left edge, tapering to a point on the right.
+       rows 4..9 (height 6), centered in the screen panel -->
+  <g fill="#5fe08a">
+    <rect x="6"  y="4" width="1" height="6"/>  <!-- back edge, full height -->
+    <rect x="7"  y="5" width="1" height="4"/>
+    <rect x="8"  y="6" width="1" height="2"/>  <!-- tip -->
+  </g>
+  <!-- triangle highlight on the leading (back) edge -->
+  <g fill="#aef5c8">
+    <rect x="6" y="4" width="1" height="1"/>
+    <rect x="6" y="9" width="1" height="1"/>
+  </g>
+
+  <!-- ===== floppy-disk "save" badge, bottom-right (overlaps frame corner) =====
+       disk body cols 9..12 rows 10..13 -->
+  <rect x="9" y="10" width="4" height="4" fill="#2f6fd0"/>
+  <!-- clipped top-left corner pixel (floppy notch) -->
+  <rect x="9" y="10" width="1" height="1" fill="#222633"/>
+  <!-- metal shutter (top strip) -->
+  <rect x="11" y="10" width="1" height="2" fill="#bcd0ff"/>
+  <!-- white label (bottom) -->
+  <rect x="10" y="12" width="2" height="1" fill="#f4ecd8"/>
+
+  <!-- ===== frame edge outline (darkest), drawn last so it sits on top ===== -->
+  <g fill="#15171f">
+    <rect x="1"  y="1"  width="14" height="1"/>  <!-- top -->
+    <rect x="1"  y="14" width="14" height="1"/>  <!-- bottom -->
+    <rect x="1"  y="1"  width="1"  height="14"/> <!-- left -->
+    <rect x="14" y="1"  width="1"  height="14"/> <!-- right -->
+  </g>
+</svg>

@@ -7,9 +7,10 @@
 
   <toolshelf name="tooandflow" label="tooandflow">
     <memberTool name="tooandflow_flipsave"/>
+    <memberTool name="tooandflow_copsave"/>
   </toolshelf>
 
-  <tool name="tooandflow_flipsave" label="Flipsave" icon="MISC_play">
+  <tool name="tooandflow_flipsave" label="Flipsave" icon="tooandflow_flipsave">
     <helpText><![CDATA[#icon: MISC_play
 #context: scene
 
@@ -37,6 +38,40 @@ else:
     fmt = "mp4"
 
 flipsave.run(fmt)
+]]></script>
+  </tool>
+
+  <tool name="tooandflow_copsave" label="COP Flipsave" icon="tooandflow_copsave">
+    <helpText><![CDATA[#icon: MISC_present
+#context: cop
+
+= tooandflow COP Flipsave =
+
+Select any Copernicus node (or a copnet), click. A temp rop_image is
+created, rendered over the playbar range at 1080x1080, then removed —
+no manual ROP setup. A dated hip copy is saved alongside.
+
+* Click          : MP4 (h264, slow preset, CRF 16)
+* Shift + click  : JPG image sequence
+* Ctrl + click   : EXR image sequence (linear, pipeline-grade)
+* Alt + click    : GIF (palette-optimised, 540x540 @ 15fps)
+
+Output goes to:
+  $HIP/flipbook/YYYY_MMDD/<scene>/<scene>_YYYY_MMDD_<HHMMSS>.{hiplc,mp4,gif,jpg,exr}
+]]></helpText>
+    <script scriptType="python"><![CDATA[
+from tooandflow import copsave
+
+if kwargs.get("ctrlclick"):
+    fmt = "exr"
+elif kwargs.get("shiftclick"):
+    fmt = "jpg"
+elif kwargs.get("altclick"):
+    fmt = "gif"
+else:
+    fmt = "mp4"
+
+copsave.run(fmt)
 ]]></script>
   </tool>
 </shelfDocument>

@@ -104,10 +104,12 @@ def build_paths(hip_path: str | os.PathLike[str]) -> dict[str, Path | str]:
     """
     hip = Path(hip_path)
     stem = scene_stem(hip)
-    date_str = today_string()
+    now = datetime.datetime.now()
+    date_str = now.strftime("%Y_%m%d")
+    time_str = now.strftime("%H%M%S")
     folder = day_folder(hip, date_str=date_str)
-    roman = next_roman(folder, stem, date_str)
-    base = f"{stem}_{date_str}_{roman}"
+    # Name = HIPNAME_YYYY_MMDD_HHMMSS — unique, sortable, no roman roll-over.
+    base = f"{stem}_{date_str}_{time_str}"
     return {
         "folder": folder,
         "base": base,
@@ -115,9 +117,21 @@ def build_paths(hip_path: str | os.PathLike[str]) -> dict[str, Path | str]:
         "mp4": folder / f"{base}.mp4",
         "jpg_pattern": str(folder / f"{base}.$F4.jpg"),
         "exr_pattern": str(folder / f"{base}.$F4.exr"),
-        "roman": roman,
+        "roman": time_str,
         "date_str": date_str,
     }
+
+
+def frame_path(pattern: str | os.PathLike[str], frame: int) -> Path:
+    """Resolve a ``...$F4.ext`` pattern to one concrete frame on disk.
+
+    ``$F``, ``$F4`` and friends are all handled — ``$F4`` with frame 7 gives
+    ``0007``, bare ``$F`` gives ``7``.
+    """
+    def sub(m: re.Match) -> str:
+        width = int(m.group(1)) if m.group(1) else 0
+        return str(int(frame)).zfill(width)
+    return Path(re.sub(r"\$F(\d*)", sub, str(pattern)))
 
 
 def jpg_glob_pattern(base_str_pattern: str) -> str:

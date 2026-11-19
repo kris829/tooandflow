@@ -1,13 +1,18 @@
 """Maximise / restore the SceneViewer pane.
 
 We don't strip the HUD — the whole point of tooandflow is the flipbook
-captures *exactly* what's in the viewport, including overlays. We just want
-the pane to be as large as the screen allows so the capture is high-res.
+captures *exactly* what's in the viewport, including overlays.
+
+Maximising is *off* by default (prefs ``maximise_viewport``): growing the pane
+changes the viewport aspect, so the capture would no longer be framed like the
+one you clicked on. Turn it on when you want the biggest capture the screen
+allows and don't mind the reframe.
 
 Houdini's pane-maximise API has shuffled between versions, so this module is
 deliberately defensive: every attempt is wrapped, and on any failure we log
-a console warning and continue. The flipbook itself still uses
-``useResolution(True)`` so output quality is never gated on this working.
+a console warning and continue. The flipbook itself renders at the
+viewport's own resolution (``useResolution(False)``), so output size follows
+whatever pane size we end up with.
 """
 
 from __future__ import annotations
@@ -32,18 +37,20 @@ def maximise() -> dict[str, Any]:
         if sv is None:
             return state
         pane = sv.pane()
-        # Modern API on Houdini 20+ — best path
-        if hasattr(pane, "setIsMaximumSize") and hasattr(pane, "isMaximumSize"):
+        # H19-H22: hou.Pane.isMaximized() / setIsMaximized(). The old name this
+        # module used to probe for ("setIsMaximumSize") does not exist on any
+        # build here, so maximise() was a silent no-op — see AGENTS.md.
+        if hasattr(pane, "setIsMaximized") and hasattr(pane, "isMaximized"):
             state["pane"] = pane
-            state["was_max"] = pane.isMaximumSize()
-            pane.setIsMaximumSize(True)
+            state["was_max"] = pane.isMaximized()
+            pane.setIsMaximized(True)
             return state
         # Older fallback: switch the pane to current tab focus at least
         if hasattr(sv, "setIsCurrentTab"):
             sv.setIsCurrentTab()
         state["pane"] = pane
         state["was_max"] = None  # marker: we didn't actually change anything
-        print("[tooandflow] viewport.maximise: pane.setIsMaximumSize not available; "
+        print("[tooandflow] viewport.maximise: pane.setIsMaximized not available; "
               "flipbook will use whatever pane size is current")
     except Exception as e:
         print(f"[tooandflow] viewport.maximise failed silently: {e!r}")
@@ -57,34 +64,84 @@ def restore(state: dict[str, Any]) -> None:
     try:
         pane = state.get("pane")
         was = state.get("was_max")
-        if pane is not None and was is not None and hasattr(pane, "setIsMaximumSize"):
-            pane.setIsMaximumSize(bool(was))
+        if pane is not None and was is not None and hasattr(pane, "setIsMaximized"):
+            pane.setIsMaximized(bool(was))
     except Exception as e:
         print(f"[tooandflow] viewport.restore failed silently: {e!r}")
 
 
-def detect_resolution(default=(1920, 1080)) -> tuple[int, int]:
-    """Pick a flipbook resolution.
+def viewport_size(default=(1920, 1080)) -> tuple[int, int]:
+    """Best-effort *estimate* of the current viewport size, in UI points.
 
-    Priority:
-      1. Current camera's resx / resy (if a camera is looked-through)
-      2. The current viewport's pixel size
-      3. ``default``
+    ``hou.GeometryViewport.size()`` returns ``(x, y, width, height)`` — the
+    first two are the origin, not the size — and on a Retina display the
+    numbers are UI points while the flipbook renders in device pixels. So this
+    is an estimate for logging / fallback only. Never trust it as the flipbook
+    resolution: let Houdini use the viewport's own resolution instead
+    (``FlipbookSettings.useResolution(False)``).
     """
     try:
         import hou
         sv = _get_scene_viewer()
         if sv is not None:
-            cam = sv.curViewport().camera()
-            if cam is not None:
-                rx = cam.parm("resx")
-                ry = cam.parm("resy")
-                if rx is not None and ry is not None:
-                    return int(rx.eval()), int(ry.eval())
-            # Viewport size fallback
             size = sv.curViewport().size()
-            if size and size[0] > 0 and size[1] > 0:
-                return int(size[0]), int(size[1])
+            if size and len(size) >= 4 and size[2] > 0 and size[3] > 0:
+                return int(size[2]), int(size[3])
     except Exception as e:
-        print(f"[tooandflow] viewport.detect_resolution falling back: {e!r}")
+        print(f"[tooandflow] viewport.viewport_size falling back: {e!r}")
     return default
+
+
+def detect_resolution(default=(1920, 1080), *, prefer_camera: bool = False) -> tuple[int, int]:
+    """Pick a fallback flipbook resolution.
+
+    Viewport first — matching the viewport is the whole point of this tool.
+    The camera's ``resx``/``resy`` is only consulted when ``prefer_camera`` is
+    asked for explicitly; it used to win by default, which is how a 1024x1024
+    camera turned a 3980x2026 viewport into a 1024x522 MP4.
+    """
+    if prefer_camera:
+        try:
+            sv = _get_scene_viewer()
+            if sv is not None:
+                cam = sv.curViewport().camera()
+                if cam is not None:
+                    rx, ry = cam.parm("resx"), cam.parm("resy")
+                    if rx is not None and ry is not None:
+                        return int(rx.eval()), int(ry.eval())
+        except Exception as e:
+            print(f"[tooandflow] viewport.detect_resolution camera lookup failed: {e!r}")
+    return viewport_size(default)
+
+
+def settle() -> None:
+    """Let the UI catch up so a resized pane reports its new size.
+
+    ``maximise()`` only flips a flag; the GL surface resizes on the next UI
+    pass. Flipbooking immediately after can capture the *old* size.
+    """
+    try:
+        import hou
+        if hasattr(hou.ui, "triggerUpdate"):
+            hou.ui.triggerUpdate()
+        if hasattr(hou.ui, "waitUntil"):
+            hou.ui.waitUntil(lambda: True)
+    except Exception as e:
+        print(f"[tooandflow] viewport.settle skipped: {e!r}")
+
+
+def probe_resolution(path) -> tuple[int, int] | None:
+    """Read back the real pixel size of a rendered frame, or ``None``.
+
+    Used to report what the flipbook *actually* wrote rather than what we
+    asked for — Houdini conforms flipbook height to the viewport aspect.
+    """
+    try:
+        import hou
+        from pathlib import Path as _P
+        if path and _P(path).exists():
+            w, h = hou.imageResolution(str(path))
+            return int(w), int(h)
+    except Exception as e:
+        print(f"[tooandflow] viewport.probe_resolution failed: {e!r}")
+    return None

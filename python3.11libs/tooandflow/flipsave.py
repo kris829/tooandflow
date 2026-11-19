@@ -65,8 +65,12 @@ def run(fmt: str = "mp4") -> dict:
     shutil.copy2(hou.hipFile.path(), p["hip"])
     print(f"[tooandflow] dated hip -> {p['hip']}")
 
-    # 4. Maximise viewport
-    vp_state = viewport.maximise()
+    # 4. Optionally maximise the viewport. Off by default: a bigger pane is a
+    #    different aspect ratio, and the point of the tool is what you *saw*.
+    vp_state = {}
+    if settings.get("maximise_viewport", False):
+        vp_state = viewport.maximise()
+        viewport.settle()
 
     # 5. Build flipbook + run
     final_output: Path
@@ -77,18 +81,31 @@ def run(fmt: str = "mp4") -> dict:
 
         fb = sv.flipbookSettings().stash()
 
-        f_start, f_end = hou.playbar.frameRange()
+        # playbackRange() = $RFSTART/$RFEND (the playbar's range); frameRange() is
+        # the global $FSTART/$FEND, which ignores a trimmed playback range.
+        f_start, f_end = hou.playbar.playbackRange()
         fb.frameRange((f_start, f_end))
         fb.outputToMPlay(False)
 
-        # Resolution: explicit override > camera > viewport > default 1920x1080
+        # Resolution: match the viewport, full stop.
+        #
+        # GOTCHA (verified H22.0.429): with useResolution(True) Houdini honours
+        # only the *width* you hand it — the height is always conformed to the
+        # viewport's aspect ratio. Asking for 1024x1024 on a 1.96:1 viewport
+        # writes 1024x522. So we don't ask: useResolution(False) is the API
+        # equivalent of the flipbook dialog's "Use Viewport" and gives the
+        # viewport's true device-pixel size (3980x2026 on a maximised pane on
+        # this Retina Mac, where viewport.size() reports 1322x1013 points).
         res_override = settings.get("resolution_override")
         if res_override and isinstance(res_override, (list, tuple)) and len(res_override) == 2:
             rx, ry = int(res_override[0]), int(res_override[1])
+            fb.useResolution(True)
+            fb.resolution((rx, ry))
+            res_note = (f"override {rx}x{ry} (width wins; Houdini conforms the "
+                        f"height to the viewport aspect)")
         else:
-            rx, ry = viewport.detect_resolution()
-        fb.useResolution(True)
-        fb.resolution((rx, ry))
+            fb.useResolution(False)          # == "Use Viewport" in the dialog
+            res_note = "viewport (as-seen)"
 
         # Output path depends on format
         if fmt == "mp4":
@@ -97,9 +114,16 @@ def run(fmt: str = "mp4") -> dict:
             fb.output(p["jpg_pattern"])
         elif fmt == "exr":
             fb.output(p["exr_pattern"])
-        print(f"[tooandflow] flipbook -> {fb.output()} @ {rx}x{ry}  frames {int(f_start)}..{int(f_end)}")
+        print(f"[tooandflow] flipbook -> {fb.output()} @ {res_note}  "
+              f"frames {int(f_start)}..{int(f_end)}")
 
         sv.flipbook(sv.curViewport(), fb)
+
+        # Report what actually landed on disk, not what we asked for.
+        pattern = p["exr_pattern"] if fmt == "exr" else p["jpg_pattern"]
+        actual_res = viewport.probe_resolution(paths.frame_path(pattern, int(f_start)))
+        if actual_res:
+            print(f"[tooandflow] wrote {actual_res[0]}x{actual_res[1]}")
 
         if fmt == "mp4":
             encoders.encode_mp4(
@@ -147,4 +171,5 @@ def run(fmt: str = "mp4") -> dict:
         "render": final_output,
         "roman": p["roman"],
         "frames": (int(f_start), int(f_end)),
+        "resolution": actual_res,
     }

@@ -17,8 +17,12 @@ DEFAULTS: dict[str, Any] = {
     "mp4_crf": 16,
     "mp4_preset": "slow",
     "keep_jpg_intermediate": False,
-    "resolution_override": None,   # null => use camera res; else [w, h]
+    "resolution_override": None,   # null => match the viewport; else [w, h]
+    "maximise_viewport": False,    # True => maximise the pane first (reframes)
     "notify_when_done": True,
+    "cops_resolution": [1080, 1080],  # copsave render size (2x-upscale-ready)
+    "gif_fps": 15,
+    "gif_scale": 0.5,              # 0.5 of cops_resolution => 540x540 gifs
 }
 
 
